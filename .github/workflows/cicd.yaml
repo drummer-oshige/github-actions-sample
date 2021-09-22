@@ -1,0 +1,73 @@
+name: Workflow
+
+on: [push]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[SKIP]') && !contains(github.event.head_commit.message, 'WIP')"
+    steps:
+    - name: commit message checking
+      run: echo "${{ github.event.head_commit.message }}"
+
+  npm_cache:
+    needs: [check]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Node
+      uses: actions/setup-node@v1
+      with:
+        node-version: '10.x'
+
+    - name: Cache node_modules
+      id: cache-node_modules
+      uses: actions/cache@v1
+      with:
+        path: node_modules
+        key: ${{runner.os}}-venv-${{hashFiles('package.json')}}
+
+    - name: Install dependencies
+      if: steps.cache-node_modules.outputs.cache-hit != 'true'
+      run: npm install
+
+  deploy:
+    needs: [npm_cache]
+    runs-on: ubuntu-latest
+    if: contains(github.ref, 'tags/release-') || github.ref == 'refs/heads/develop' || contains(github.event.head_commit.message, '[DEPLOY_DEV]')
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Node
+      uses: actions/setup-node@v1
+      with:
+        node-version: '10.x'
+
+    - name: Cache node_modules
+      id: cache-node_modules
+      uses: actions/cache@v1
+      with:
+        path: node_modules
+        key: ${{runner.os}}-venv-${{hashFiles('package.json')}}
+
+    - name: Deploy dev
+      if: contains(github.event.head_commit.message, '[DEPLOY_DEV]')
+      run: |
+        sudo sh deploy.sh
+      env:
+        KEY: ${{secrets.DEV_KEY}}
+
+    - name: Deploy staging
+      if: github.ref == 'refs/heads/develop'
+      run: |
+        sudo sh deploy.sh
+      env:
+        KEY: ${{secrets.STG_KEY}}
+
+    - name: Deploy production
+      if: contains(github.ref, 'tags/release-')
+      run: |
+        sudo sh deploy.sh
+      env:
+        KEY: ${{secrets.PROD_KEY}}
