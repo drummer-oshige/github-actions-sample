@@ -54,20 +54,20 @@ jobs:
     - name: Deploy dev
       if: contains(github.event.head_commit.message, '[DEPLOY_DEV]')
       run: |
-        sudo ./deploy.sh
+        sudo sh deploy.sh
       env:
         KEY: ${{secrets.DEV_KEY}}
 
     - name: Deploy staging
       if: github.ref == 'refs/heads/develop'
       run: |
-        sudo ./deploy.sh
+        sudo sh deploy.sh
       env:
         KEY: ${{secrets.STG_KEY}}
 
     - name: Deploy production
       if: contains(github.ref, 'tags/release-')
       run: |
-        sudo ./deploy.sh
+        sudo sh deploy.sh
       env:
         KEY: ${{secrets.PROD_KEY}}
